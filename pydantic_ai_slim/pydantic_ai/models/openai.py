@@ -275,7 +275,16 @@ class OpenAIAgentModel(AgentModel):
             if isinstance(part, SystemPromptPart):
                 yield chat.ChatCompletionSystemMessageParam(role='system', content=part.content)
             elif isinstance(part, UserPromptPart):
-                yield chat.ChatCompletionUserMessageParam(role='user', content=part.content)
+                content = part.content
+                if content.startswith('data:image/jpeg;base64'):
+                    yield chat.ChatCompletionUserMessageParam(
+                        role='user',
+                        content=[
+                            chat.ChatCompletionContentPartImageParam(type='image_url', image_url={'url': content})
+                        ],
+                    )
+                else:
+                    yield chat.ChatCompletionUserMessageParam(role='user', content=part.content)
             elif isinstance(part, ToolReturnPart):
                 yield chat.ChatCompletionToolMessageParam(
                     role='tool',
