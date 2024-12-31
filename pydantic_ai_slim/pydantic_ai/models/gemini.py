@@ -422,7 +422,10 @@ class _GeminiContent(TypedDict):
 
 def _content_user_prompt(m: UserPromptPart) -> _GeminiContent:
     if m.content.startswith('data:image/jpeg;base64'):
-        return _GeminiContent(role='user', parts=[_GeminiInlineDataPart(mime_type='image/jpeg', data=m.content)])
+        return _GeminiContent(
+            role='user',
+            parts=[_GeminiInlineDataPart(inline_data=_GeminiInlineData(mime_type='image/jpeg', data=m.content))],
+        )
     return _GeminiContent(role='user', parts=[_GeminiTextPart(text=m.content)])
 
 
@@ -458,8 +461,7 @@ class _GeminiTextPart(TypedDict):
 
 
 class _GeminiInlineDataPart(TypedDict):
-    mime_type: Annotated[str, pydantic.Field(alias='mimeType')]
-    data: str
+    inline_data: Annotated[_GeminiInlineData, pydantic.Field(alias='inlineData')]
 
 
 class _GeminiFunctionCallPart(TypedDict):
@@ -489,6 +491,11 @@ class _GeminiFunctionCall(TypedDict):
 
     name: str
     args: dict[str, Any]
+
+
+class _GeminiInlineData(TypedDict):
+    mime_type: Annotated[str, pydantic.Field(alias='mimeType')]
+    data: str
 
 
 class _GeminiFunctionResponsePart(TypedDict):
