@@ -422,9 +422,10 @@ class _GeminiContent(TypedDict):
 
 def _content_user_prompt(m: UserPromptPart) -> _GeminiContent:
     if m.content.startswith('data:image/jpeg;base64'):
+        content = m.content.removeprefix('data:image/jpeg;base64,')
         return _GeminiContent(
             role='user',
-            parts=[_GeminiInlineDataPart(inline_data=_GeminiInlineData(mime_type='image/jpeg', data=m.content))],
+            parts=[_GeminiInlineDataPart(inline_data=_GeminiInlineData(mime_type='image/jpeg', data=content))],
         )
     return _GeminiContent(role='user', parts=[_GeminiTextPart(text=m.content)])
 
