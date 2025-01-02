@@ -273,17 +273,34 @@ class GeminiAgentModel(AgentModel):
         contents: list[_GeminiContent] = []
         for m in messages:
             if isinstance(m, ModelRequest):
+                message_parts: list[_GeminiPartUnion] = []
+
                 for part in m.parts:
                     if isinstance(part, SystemPromptPart):
                         sys_prompt_parts.append(_GeminiTextPart(text=part.content))
                     elif isinstance(part, UserPromptPart):
-                        contents.append(_content_user_prompt(part))
+                        if part.content.startswith('data:image/jpeg;base64'):
+                            content = part.content.removeprefix('data:image/jpeg;base64,')
+                            message_parts.append(
+                                _GeminiInlineDataPart(
+                                    inline_data=_GeminiInlineData(mime_type='image/jpeg', data=content)
+                                )
+                            )
+                        else:
+                            message_parts.append(_GeminiTextPart(text=part.content))
                     elif isinstance(part, ToolReturnPart):
-                        contents.append(_content_tool_return(part))
+                        message_parts.append(_response_part_from_response(part.tool_name, part.model_response_object()))
                     elif isinstance(part, RetryPromptPart):
-                        contents.append(_content_retry_prompt(part))
+                        if part.tool_name is None:
+                            message_parts.append(_GeminiTextPart(text=part.model_response()))
+                        else:
+                            response = {'call_error': part.model_response()}
+                            message_parts.append(_response_part_from_response(part.tool_name, response))
                     else:
                         assert_never(part)
+
+                if message_parts:
+                    contents.append(_GeminiContent(role='user', parts=message_parts))
             elif isinstance(m, ModelResponse):
                 contents.append(_content_model_response(m))
             else:
@@ -418,30 +435,6 @@ class _GeminiGenerationConfig(TypedDict, total=False):
 class _GeminiContent(TypedDict):
     role: Literal['user', 'model']
     parts: list[_GeminiPartUnion]
-
-
-def _content_user_prompt(m: UserPromptPart) -> _GeminiContent:
-    if m.content.startswith('data:image/jpeg;base64'):
-        content = m.content.removeprefix('data:image/jpeg;base64,')
-        return _GeminiContent(
-            role='user',
-            parts=[_GeminiInlineDataPart(inline_data=_GeminiInlineData(mime_type='image/jpeg', data=content))],
-        )
-    return _GeminiContent(role='user', parts=[_GeminiTextPart(text=m.content)])
-
-
-def _content_tool_return(m: ToolReturnPart) -> _GeminiContent:
-    f_response = _response_part_from_response(m.tool_name, m.model_response_object())
-    return _GeminiContent(role='user', parts=[f_response])
-
-
-def _content_retry_prompt(m: RetryPromptPart) -> _GeminiContent:
-    if m.tool_name is None:
-        part = _GeminiTextPart(text=m.model_response())
-    else:
-        response = {'call_error': m.model_response()}
-        part = _response_part_from_response(m.tool_name, response)
-    return _GeminiContent(role='user', parts=[part])
 
 
 def _content_model_response(m: ModelResponse) -> _GeminiContent:
