@@ -5,7 +5,7 @@ We'd love you to contribute to PydanticAI!
 Clone your fork and cd into the repo directory
 
 ```bash
-git clone git@github.com:<your username>/pydantic.git
+git clone git@github.com:<your username>/pydantic-ai.git
 cd pydantic-ai
 ```
 
@@ -42,6 +42,14 @@ To run code formatting, linting, static type checks, and tests with coverage rep
 
 ```bash
 make
+```
+
+## Documentation Changes
+
+To run the documentation page locally, run:
+
+```bash
+uv run mkdocs serve
 ```
 
 ## Rules for adding new models to PydanticAI {#new-model-rules}
