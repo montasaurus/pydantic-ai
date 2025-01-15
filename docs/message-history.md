@@ -102,7 +102,7 @@ async def main():
         ]
         """
 
-        async for text in result.stream():
+        async for text in result.stream_text():
             print(text)
             #> Did you hear
             #> Did you hear about the toothpaste
@@ -141,7 +141,7 @@ async def main():
         ]
         """
 ```
-_(This example is complete, it can be run "as is")_
+_(This example is complete, it can be run "as is" — you'll need to add `asyncio.run(main())` to run `main`)_
 
 ### Using Messages as Input for Further Agent Runs
 

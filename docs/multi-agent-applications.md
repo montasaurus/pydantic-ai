@@ -5,7 +5,7 @@ There are roughly four levels of complexity when building applications with Pyda
 1. Single agent workflows — what most of the `pydantic_ai` documentation covers
 2. [Agent delegation](#agent-delegation) — agents using another agent via tools
 3. [Programmatic agent hand-off](#programmatic-agent-hand-off) — one agent runs, then application code calls another agent
-4. [Graph based control flow](#pydanticai-graphs) — for the most complex cases, a graph-based state machine can be used to control the execution of multiple agents
+4. [Graph based control flow](graph.md) — for the most complex cases, a graph-based state machine can be used to control the execution of multiple agents
 
 Of course, you can combine multiple strategies in a single application.
 
@@ -148,9 +148,9 @@ async def main():
         """
         Usage(
             requests=4,
-            request_tokens=310,
+            request_tokens=309,
             response_tokens=32,
-            total_tokens=342,
+            total_tokens=341,
             details=None,
         )
         """
@@ -163,7 +163,7 @@ async def main():
 5. Define a tool on the delegate agent that uses the dependencies to make an HTTP request.
 6. Usage now includes 4 requests — 2 from the calling agent and 2 from the delegate agent.
 
-_(This example is complete, it can be run "as is")_
+_(This example is complete, it can be run "as is" — you'll need to add `asyncio.run(main())` to run `main`)_
 
 This example shows how even a fairly simple agent delegation can lead to a complex control flow:
 
@@ -306,7 +306,7 @@ async def main():  # (7)!
 6. Define a function to find the user's seat preference, which asks the user for their seat preference and then calls the agent to extract the seat preference.
 7. Now that we've put our logic for running each agent into separate functions, our main app becomes very simple.
 
-_(This example is complete, it can be run "as is")_
+_(This example is complete, it can be run "as is" — you'll need to add `asyncio.run(main())` to run `main`)_
 
 The control flow for this example can be summarised as follows:
 
@@ -330,10 +330,9 @@ graph TB
   seat_preference_agent --> END
 ```
 
-## PydanticAI Graphs
+## Pydantic Graphs
 
-!!! example "Work in progress"
-    This is a work in progress and not yet documented, see [#528](https://github.com/pydantic/pydantic-ai/issues/528) and [#539](https://github.com/pydantic/pydantic-ai/issues/539)
+See the [graph](graph.md) documentation on when and how to use graphs.
 
 ## Examples
 
