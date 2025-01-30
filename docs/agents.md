@@ -110,7 +110,7 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
-agent = Agent('claude-3-5-sonnet-latest')
+agent = Agent('anthropic:claude-3-5-sonnet-latest')
 
 result_sync = agent.run_sync(
     'What is the capital of Italy? Answer with just the city.',
@@ -152,7 +152,7 @@ class NeverResultType(TypedDict):
 
 
 agent = Agent(
-    'claude-3-5-sonnet-latest',
+    'anthropic:claude-3-5-sonnet-latest',
     retries=3,
     result_type=NeverResultType,
     system_prompt='Any time you get a response, call the `infinite_retry_tool` to produce another response.',
@@ -199,6 +199,28 @@ agent = Agent('openai:gpt-4o')
 
 result_sync = agent.run_sync(
     'What is the capital of Italy?', model_settings={'temperature': 0.0}
+)
+print(result_sync.data)
+#> Rome
+```
+
+### Model specific settings
+
+<!-- TODO: replace this with the gemini safety settings example once added via https://github.com/pydantic/pydantic-ai/issues/373 -->
+
+If you wish to further customize model behavior, you can use a subclass of [`ModelSettings`][pydantic_ai.settings.ModelSettings], like [`AnthropicModelSettings`][pydantic_ai.models.anthropic.AnthropicModelSettings], associated with your model of choice.
+
+For example:
+
+```py
+from pydantic_ai import Agent
+from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+agent = Agent('anthropic:claude-3-5-sonnet-latest')
+
+result_sync = agent.run_sync(
+    'What is the capital of Italy?',
+    model_settings=AnthropicModelSettings(anthropic_metadata={'user_id': 'my_user_id'}),
 )
 print(result_sync.data)
 #> Rome
@@ -441,7 +463,7 @@ with capture_run_messages() as messages:  # (2)!
                 parts=[
                     ToolCallPart(
                         tool_name='calc_volume',
-                        args=ArgsDict(args_dict={'size': 6}),
+                        args={'size': 6},
                         tool_call_id=None,
                         part_kind='tool-call',
                     )
@@ -466,7 +488,7 @@ with capture_run_messages() as messages:  # (2)!
                 parts=[
                     ToolCallPart(
                         tool_name='calc_volume',
-                        args=ArgsDict(args_dict={'size': 6}),
+                        args={'size': 6},
                         tool_call_id=None,
                         part_kind='tool-call',
                     )

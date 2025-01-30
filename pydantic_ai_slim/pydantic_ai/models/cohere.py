@@ -3,9 +3,10 @@ from __future__ import annotations as _annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Literal, TypeAlias, Union
+from typing import Literal, Union, cast
 
 from cohere import TextAssistantMessageContentItem
+from httpx import AsyncClient as AsyncHTTPClient
 from typing_extensions import assert_never
 
 from .. import result
@@ -51,24 +52,30 @@ except ImportError as _import_error:
         "you can use the `cohere` optional group — `pip install 'pydantic-ai-slim[cohere]'`"
     ) from _import_error
 
-CohereModelName: TypeAlias = Union[
-    str,
-    Literal[
-        'c4ai-aya-expanse-32b',
-        'c4ai-aya-expanse-8b',
-        'command',
-        'command-light',
-        'command-light-nightly',
-        'command-nightly',
-        'command-r',
-        'command-r-03-2024',
-        'command-r-08-2024',
-        'command-r-plus',
-        'command-r-plus-04-2024',
-        'command-r-plus-08-2024',
-        'command-r7b-12-2024',
-    ],
+NamedCohereModels = Literal[
+    'c4ai-aya-expanse-32b',
+    'c4ai-aya-expanse-8b',
+    'command',
+    'command-light',
+    'command-light-nightly',
+    'command-nightly',
+    'command-r',
+    'command-r-03-2024',
+    'command-r-08-2024',
+    'command-r-plus',
+    'command-r-plus-04-2024',
+    'command-r-plus-08-2024',
+    'command-r7b-12-2024',
 ]
+"""Latest / most popular named Cohere models."""
+
+CohereModelName = Union[NamedCohereModels, str]
+
+
+class CohereModelSettings(ModelSettings):
+    """Settings used for a Cohere model request."""
+
+    # This class is a placeholder for any future cohere-specific settings
 
 
 @dataclass(init=False)
@@ -90,6 +97,7 @@ class CohereModel(Model):
         *,
         api_key: str | None = None,
         cohere_client: AsyncClientV2 | None = None,
+        http_client: AsyncHTTPClient | None = None,
     ):
         """Initialize an Cohere model.
 
@@ -97,16 +105,18 @@ class CohereModel(Model):
             model_name: The name of the Cohere model to use. List of model names
                 available [here](https://docs.cohere.com/docs/models#command).
             api_key: The API key to use for authentication, if not provided, the
-                `COHERE_API_KEY` environment variable will be used if available.
+                `CO_API_KEY` environment variable will be used if available.
             cohere_client: An existing Cohere async client to use. If provided,
-                `api_key` must be `None`.
+                `api_key` and `http_client` must be `None`.
+            http_client: An existing `httpx.AsyncClient` to use for making HTTP requests.
         """
         self.model_name: CohereModelName = model_name
         if cohere_client is not None:
+            assert http_client is None, 'Cannot provide both `cohere_client` and `http_client`'
             assert api_key is None, 'Cannot provide both `cohere_client` and `api_key`'
             self.client = cohere_client
         else:
-            self.client = AsyncClientV2(api_key=api_key)  # type: ignore
+            self.client = AsyncClientV2(api_key=api_key, httpx_client=http_client)  # type: ignore
 
     async def agent_model(
         self,
@@ -153,16 +163,15 @@ class CohereAgentModel(AgentModel):
     async def request(
         self, messages: list[ModelMessage], model_settings: ModelSettings | None
     ) -> tuple[ModelResponse, result.Usage]:
-        response = await self._chat(messages, model_settings)
+        response = await self._chat(messages, cast(CohereModelSettings, model_settings or {}))
         return self._process_response(response), _map_usage(response)
 
     async def _chat(
         self,
         messages: list[ModelMessage],
-        model_settings: ModelSettings | None,
+        model_settings: CohereModelSettings,
     ) -> ChatResponse:
         cohere_messages = list(chain(*(self._map_message(m) for m in messages)))
-        model_settings = model_settings or {}
         return await self.client.chat(
             model=self.model_name,
             messages=cohere_messages,
@@ -170,6 +179,9 @@ class CohereAgentModel(AgentModel):
             max_tokens=model_settings.get('max_tokens', OMIT),
             temperature=model_settings.get('temperature', OMIT),
             p=model_settings.get('top_p', OMIT),
+            seed=model_settings.get('seed', OMIT),
+            presence_penalty=model_settings.get('presence_penalty', OMIT),
+            frequency_penalty=model_settings.get('frequency_penalty', OMIT),
         )
 
     def _process_response(self, response: ChatResponse) -> ModelResponse:
@@ -183,7 +195,7 @@ class CohereAgentModel(AgentModel):
         for c in response.message.tool_calls or []:
             if c.function and c.function.name and c.function.arguments:
                 parts.append(
-                    ToolCallPart.from_raw_args(
+                    ToolCallPart(
                         tool_name=c.function.name,
                         args=c.function.arguments,
                         tool_call_id=c.id,

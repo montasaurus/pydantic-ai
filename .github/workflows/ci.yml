@@ -74,6 +74,17 @@ jobs:
           ALGOLIA_WRITE_API_KEY: ${{ secrets.ALGOLIA_WRITE_API_KEY }}
 
       - run: tree site
+      - uses: actions/setup-node@v4
+      - run: npm install
+        working-directory: docs-site
+      - run: npm run typecheck
+        working-directory: docs-site
+
+      - name: Store docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: site
 
   test-live:
     runs-on: ubuntu-latest
@@ -98,6 +109,7 @@ jobs:
           --extra groq
           --extra anthropic
           --extra mistral
+          --extra cohere
           pytest tests/test_live.py -v
           --durations=100
         env:
@@ -108,6 +120,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          CO_API_KEY: ${{ secrets.COHERE_API_KEY }}
 
   test:
     name: test on ${{ matrix.python-version }}
@@ -128,8 +141,8 @@ jobs:
 
       - run: mkdir coverage
 
-      # run tests with just `pydantic-ai-slim` and `pydantic-graph` dependencies
-      - run: uv run --package pydantic-ai-slim --extra graph coverage run -m pytest
+      # run tests with just `pydantic-ai-slim` dependencies
+      - run: uv run --package pydantic-ai-slim coverage run -m pytest
         env:
           COVERAGE_FILE: coverage/.coverage.${{ runner.os }}-py${{ matrix.python-version }}-slim
 
@@ -214,6 +227,34 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
           allowed-skips: test-live
+
+  deploy-docs:
+    if: "success() && github.ref == 'refs/heads/main'"
+    runs-on: ubuntu-latest
+    needs: [check]
+    environment:
+      name: deploy-docs
+      url: https://testing-ai.pydantic.dev
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm install
+        working-directory: docs-site
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: site
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: docs-site
+          command: >
+            deploy
+            --var GIT_COMMIT_SHA:${{ github.sha }}
+            --var GIT_BRANCH:main
 
   release:
     needs: [check]
