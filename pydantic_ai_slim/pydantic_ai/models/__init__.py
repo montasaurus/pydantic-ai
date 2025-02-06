@@ -52,11 +52,15 @@ KnownModelName = Literal[
     'google-gla:gemini-1.5-flash-8b',
     'google-gla:gemini-1.5-pro',
     'google-gla:gemini-2.0-flash-exp',
+    'google-gla:gemini-2.0-flash-thinking-exp-01-21',
+    'google-gla:gemini-exp-1206',
     'google-vertex:gemini-1.0-pro',
     'google-vertex:gemini-1.5-flash',
     'google-vertex:gemini-1.5-flash-8b',
     'google-vertex:gemini-1.5-pro',
     'google-vertex:gemini-2.0-flash-exp',
+    'google-vertex:gemini-2.0-flash-thinking-exp-01-21',
+    'google-vertex:gemini-exp-1206',
     'gpt-3.5-turbo',
     'gpt-3.5-turbo-0125',
     'gpt-3.5-turbo-0301',
@@ -108,6 +112,8 @@ KnownModelName = Literal[
     'o1-mini-2024-09-12',
     'o1-preview',
     'o1-preview-2024-09-12',
+    'o3-mini',
+    'o3-mini-2025-01-31',
     'openai:chatgpt-4o-latest',
     'openai:gpt-3.5-turbo',
     'openai:gpt-3.5-turbo-0125',
@@ -145,6 +151,8 @@ KnownModelName = Literal[
     'openai:o1-mini-2024-09-12',
     'openai:o1-preview',
     'openai:o1-preview-2024-09-12',
+    'openai:o3-mini',
+    'openai:o3-mini-2025-01-31',
     'test',
 ]
 """Known model names that can be used with the `model` parameter of [`Agent`][pydantic_ai.Agent].
@@ -153,49 +161,37 @@ KnownModelName = Literal[
 """
 
 
+@dataclass
+class ModelRequestParameters:
+    """Configuration for an agent's request to a model, specifically related to tools and result handling."""
+
+    function_tools: list[ToolDefinition]
+    allow_text_result: bool
+    result_tools: list[ToolDefinition]
+
+
 class Model(ABC):
     """Abstract class for a model."""
 
-    @abstractmethod
-    async def agent_model(
-        self,
-        *,
-        function_tools: list[ToolDefinition],
-        allow_text_result: bool,
-        result_tools: list[ToolDefinition],
-    ) -> AgentModel:
-        """Create an agent model, this is called for each step of an agent run.
-
-        This is async in case slow/async config checks need to be performed that can't be done in `__init__`.
-
-        Args:
-            function_tools: The tools available to the agent.
-            allow_text_result: Whether a plain text final response/result is permitted.
-            result_tools: Tool definitions for the final result tool(s), if any.
-
-        Returns:
-            An agent model.
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def name(self) -> str:
-        raise NotImplementedError()
-
-
-class AgentModel(ABC):
-    """Model configured for each step of an Agent run."""
+    _model_name: str
+    _system: str | None
 
     @abstractmethod
     async def request(
-        self, messages: list[ModelMessage], model_settings: ModelSettings | None
+        self,
+        messages: list[ModelMessage],
+        model_settings: ModelSettings | None,
+        model_request_parameters: ModelRequestParameters,
     ) -> tuple[ModelResponse, Usage]:
         """Make a request to the model."""
         raise NotImplementedError()
 
     @asynccontextmanager
     async def request_stream(
-        self, messages: list[ModelMessage], model_settings: ModelSettings | None
+        self,
+        messages: list[ModelMessage],
+        model_settings: ModelSettings | None,
+        model_request_parameters: ModelRequestParameters,
     ) -> AsyncIterator[StreamedResponse]:
         """Make a request to the model and return a streaming response."""
         # This method is not required, but you need to implement it if you want to support streamed responses
@@ -203,6 +199,16 @@ class AgentModel(ABC):
         # yield is required to make this a generator for type checking
         # noinspection PyUnreachableCode
         yield  # pragma: no cover
+
+    @property
+    def model_name(self) -> str:
+        """The model name."""
+        return self._model_name
+
+    @property
+    def system(self) -> str | None:
+        """The system / model provider, ex: openai."""
+        return self._system
 
 
 @dataclass
@@ -266,7 +272,7 @@ def check_allow_model_requests() -> None:
     """Check if model requests are allowed.
 
     If you're defining your own models that have costs or latency associated with their use, you should call this in
-    [`Model.agent_model`][pydantic_ai.models.Model.agent_model].
+    [`Model.request`][pydantic_ai.models.Model.request] and [`Model.request_stream`][pydantic_ai.models.Model.request_stream].
 
     Raises:
         RuntimeError: If model requests are not allowed.
@@ -307,33 +313,33 @@ def infer_model(model: Model | KnownModelName) -> Model:
         from .openai import OpenAIModel
 
         return OpenAIModel(model[7:])
-    elif model.startswith(('gpt', 'o1')):
+    elif model.startswith(('gpt', 'o1', 'o3')):
         from .openai import OpenAIModel
 
         return OpenAIModel(model)
     elif model.startswith('google-gla'):
         from .gemini import GeminiModel
 
-        return GeminiModel(model[11:])  # pyright: ignore[reportArgumentType]
+        return GeminiModel(model[11:])
     # backwards compatibility with old model names (ex, gemini-1.5-flash -> google-gla:gemini-1.5-flash)
     elif model.startswith('gemini'):
         from .gemini import GeminiModel
 
         # noinspection PyTypeChecker
-        return GeminiModel(model)  # pyright: ignore[reportArgumentType]
+        return GeminiModel(model)
     elif model.startswith('groq:'):
         from .groq import GroqModel
 
-        return GroqModel(model[5:])  # pyright: ignore[reportArgumentType]
+        return GroqModel(model[5:])
     elif model.startswith('google-vertex'):
         from .vertexai import VertexAIModel
 
-        return VertexAIModel(model[14:])  # pyright: ignore[reportArgumentType]
+        return VertexAIModel(model[14:])
     # backwards compatibility with old model names (ex, vertexai:gemini-1.5-flash -> google-vertex:gemini-1.5-flash)
     elif model.startswith('vertexai:'):
         from .vertexai import VertexAIModel
 
-        return VertexAIModel(model[9:])  # pyright: ignore[reportArgumentType]
+        return VertexAIModel(model[9:])
     elif model.startswith('mistral:'):
         from .mistral import MistralModel
 

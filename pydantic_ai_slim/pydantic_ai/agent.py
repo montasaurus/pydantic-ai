@@ -282,7 +282,7 @@ class Agent(Generic[AgentDepsT, ResultDataT]):
         result_schema: _result.ResultSchema[RunResultDataT] | None = self._prepare_result_schema(result_type)
 
         # Build the graph
-        graph = _agent_graph.build_agent_graph(self.name, self._deps_type, result_type or self.result_type)
+        graph = self._build_graph(result_type)
 
         # Build the initial state
         state = _agent_graph.GraphAgentState(
@@ -309,7 +309,7 @@ class Agent(Generic[AgentDepsT, ResultDataT]):
             '{agent_name} run {prompt=}',
             prompt=user_prompt,
             agent=self,
-            model_name=model_used.name() if model_used else 'no-model',
+            model_name=model_used.model_name if model_used else 'no-model',
             agent_name=self.name or 'agent',
         ) as run_span:
             # Build the deps object for the graph
@@ -554,7 +554,7 @@ class Agent(Generic[AgentDepsT, ResultDataT]):
             '{agent_name} run stream {prompt=}',
             prompt=user_prompt,
             agent=self,
-            model_name=model_used.name(),
+            model_name=model_used.model_name if model_used else 'no-model',
             agent_name=self.name or 'agent',
         ) as run_span:
             # Build the deps object for the graph

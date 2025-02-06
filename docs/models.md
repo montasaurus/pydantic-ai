@@ -377,7 +377,7 @@ pip/uv-add 'pydantic-ai-slim[mistral]'
 
 To use [Mistral](https://mistral.ai) through their API, go to [console.mistral.ai/api-keys/](https://console.mistral.ai/api-keys/) and follow your nose until you find the place to generate an API key.
 
-[`NamedMistralModels`][pydantic_ai.models.mistral.NamedMistralModels] contains a list of the most popular Mistral models.
+[`MistralModelName`][pydantic_ai.models.mistral.MistralModelName] contains a list of the most popular Mistral models.
 
 ### Environment variable
 
@@ -434,7 +434,7 @@ pip/uv-add 'pydantic-ai-slim[cohere]'
 
 To use [Cohere](https://cohere.com/) through their API, go to [dashboard.cohere.com/api-keys](https://dashboard.cohere.com/api-keys) and follow your nose until you find the place to generate an API key.
 
-[`NamedCohereModels`][pydantic_ai.models.cohere.NamedCohereModels] contains a list of the most popular Cohere models.
+[`CohereModelName`][pydantic_ai.models.cohere.CohereModelName] contains a list of the most popular Cohere models.
 
 ### Environment variable
 
@@ -628,9 +628,8 @@ agent = Agent(model)
 
 To implement support for models not already supported, you will need to subclass the [`Model`][pydantic_ai.models.Model] abstract base class.
 
-This in turn will require you to implement the following other abstract base classes:
+For streaming, you'll also need to implement the following abstract base class:
 
-* [`AgentModel`][pydantic_ai.models.AgentModel]
 * [`StreamedResponse`][pydantic_ai.models.StreamedResponse]
 
 The best place to start is to review the source code for existing implementations, e.g. [`OpenAIModel`](https://github.com/pydantic/pydantic-ai/blob/main/pydantic_ai_slim/pydantic_ai/models/openai.py).

@@ -17,6 +17,7 @@ from pytest_examples import CodeExample, EvalExample, find_examples
 from pytest_mock import MockerFixture
 
 from pydantic_ai._utils import group_by_temporal
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
@@ -179,7 +180,7 @@ text_responses: dict[str, str | ToolCallPart] = {
         'The weather in West London is raining, while in Wiltshire it is sunny.'
     ),
     'Tell me a joke.': 'Did you hear about the toothpaste scandal? They called it Colgate.',
-    'Explain?': 'This is an excellent joke invent by Samuel Colvin, it needs no explanation.',
+    'Explain?': 'This is an excellent joke invented by Samuel Colvin, it needs no explanation.',
     'What is the capital of France?': 'Paris',
     'What is the capital of Italy?': 'Rome',
     'What is the capital of the UK?': 'London',
@@ -288,6 +289,8 @@ async def model_logic(messages: list[ModelMessage], info: AgentInfo) -> ModelRes
                     )
                 ]
             )
+        elif m.content.startswith('Write a list of 5 very rude things that I might say'):
+            raise UnexpectedModelBehavior('Safety settings triggered', body='<safety settings details>')
         elif m.content.startswith('<examples>\n  <user>'):
             return ModelResponse(parts=[ToolCallPart(tool_name='final_result_EmailOk', args={})])
         elif m.content == 'Ask a simple question with a single correct answer.' and len(messages) > 2:
