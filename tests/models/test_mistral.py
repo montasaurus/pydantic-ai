@@ -176,7 +176,7 @@ def func_chunk(
 
 def test_init():
     m = MistralModel('mistral-large-latest', api_key='foobar')
-    assert m.name() == 'mistral:mistral-large-latest'
+    assert m.model_name == 'mistral-large-latest'
 
 
 #####################
@@ -1633,7 +1633,7 @@ async def test_stream_tool_call_with_retry(allow_model_requests: None):
             ModelResponse(
                 parts=[TextPart(content='final response')],
                 model_name='mistral-large-latest',
-                timestamp=IsNow(tz=timezone.utc),
+                timestamp=datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc),
             ),
         ]
     )
